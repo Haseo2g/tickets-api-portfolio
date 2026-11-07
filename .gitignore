@@ -1,0 +1,29 @@
+# Maven e artefatos locais
+target/
+work/
+outputs/
+*.log
+
+# IDEs
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.factorypath
+out/
+.vscode/
+
+# AWS e configuração local
+.aws-sam/
+.aws/
+**/.aws/
+samconfig.toml
+samconfig.*.toml
+.env
+.env.*
+!.env.example
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

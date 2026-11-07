@@ -1,0 +1,38 @@
+@base = https://SUBSTITUA.execute-api.REGIAO.amazonaws.com
+@id = SUBSTITUA_PELO_ID_RETORNADO
+
+### Saúde
+GET {{base}}/health
+
+### Criar
+POST {{base}}/tickets
+Content-Type: application/json
+
+{"title":"Impressora sem papel","description":"Exemplo fictício para demonstração"}
+
+### Consultar
+GET {{base}}/tickets/{{id}}
+
+### Listar
+GET {{base}}/tickets?limit=20
+
+### Avançar na paginação (substitua o token)
+GET {{base}}/tickets?limit=20&nextToken=SUBSTITUA
+
+### Em andamento
+PATCH {{base}}/tickets/{{id}}/status
+Content-Type: application/json
+
+{"status":"IN_PROGRESS"}
+
+### Fechar
+PATCH {{base}}/tickets/{{id}}/status
+Content-Type: application/json
+
+{"status":"CLOSED"}
+
+### Erro esperado
+PATCH {{base}}/tickets/{{id}}/status
+Content-Type: application/json
+
+{"status":"OPEN"}

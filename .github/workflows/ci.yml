@@ -1,0 +1,20 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: aws-actions/setup-sam@v3
+      - run: bash ./mvnw -B verify
+      - run: sam validate --template-file template.yaml

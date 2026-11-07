@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: API publica de chamados para demonstracao
+Resources:
+  TicketsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+  TicketsApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: '$default'
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 10
+        ThrottlingRateLimit: 5
+  TicketsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: java21
+      Handler: dev.portfolio.tickets.ApiHandler::handleRequest
+      CodeUri: target/tickets-api.jar
+      MemorySize: 512
+      Timeout: 10
+      ReservedConcurrentExecutions: 2
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TicketsTable
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:Scan
+                - dynamodb:UpdateItem
+              Resource: !GetAtt TicketsTable.Arn
+      Events:
+        Health:
+          Type: HttpApi
+          Properties: { ApiId: !Ref TicketsApi, Path: /health, Method: GET }
+        Create:
+          Type: HttpApi
+          Properties: { ApiId: !Ref TicketsApi, Path: /tickets, Method: POST }
+        List:
+          Type: HttpApi
+          Properties: { ApiId: !Ref TicketsApi, Path: /tickets, Method: GET }
+        Get:
+          Type: HttpApi
+          Properties: { ApiId: !Ref TicketsApi, Path: '/tickets/{id}', Method: GET }
+        Status:
+          Type: HttpApi
+          Properties: { ApiId: !Ref TicketsApi, Path: '/tickets/{id}/status', Method: PATCH }
+  TicketsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${TicketsFunction}'
+      RetentionInDays: 7
+Outputs:
+  ApiUrl:
+    Value: !Sub 'https://${TicketsApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
+  TableName:
+    Value: !Ref TicketsTable
+  FunctionName:
+    Value: !Ref TicketsFunction
