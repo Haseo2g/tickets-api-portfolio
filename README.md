@@ -1,187 +1,154 @@
-# API de chamados em Java na AWS
+# API de chamados em Java 21 na AWS
 
-Projeto de portfólio: uma API pública pequena, com regras de negócio, persistência, testes e entrega automatizada. Use **somente dados fictícios**. Não há autenticação nesta versão; CORS não é autenticação.
+API pública de gerenciamento de chamados para demonstrar Java, regras de negócio, DynamoDB, tratamento de erros, logs estruturados, testes e integração contínua. A aplicação foi **publicada manualmente** com AWS SAM e CloudFormation na região `us-east-2`. Use somente **dados fictícios**: esta versão não tem autenticação.
 
-## Estado atual
+**[API publicada](https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com/health)** · **[CI aprovada](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867)** · **[Template SAM](template.yaml)** · **[Deploy manual](docs/DEPLOY_MANUAL_AWS_FREE.md)**
 
-| Etapa | Estado |
+## Estado e evidências
+
+| Etapa | Resultado |
 |---|---|
-| Implementação Java, testes, template SAM e workflows | Concluídos no código |
-| Testes e pacote locais | `./mvnw.cmd -B clean verify` em 07/11/2026: **6 testes, 0 falhas, BUILD SUCCESS**; JAR em `target/tickets-api.jar` e ZIP para Lambda em `deploy-artifacts/tickets-api-lambda.zip` |
-| CI no GitHub | **Validada** na [execução #2](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42399430980): testes, pacote e `sam validate` aprovados |
-| Infraestrutura AWS | **Não publicada**; nenhuma URL de API ou evidência de deploy é apresentada aqui |
-| Deploy por OIDC | **Pendente**: a conta AWS Free Account Plan informada bloqueia a configuração do provedor OIDC sem recursos avançados; não será feito upgrade nem uso de chaves permanentes |
+| Aplicação | Java 21, cinco rotas e persistência no DynamoDB |
+| Testes unitários | 6 testes aprovados antes da publicação; executáveis sem conta AWS |
+| CI | [Execução no GitHub Actions](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867) aprovada: Maven Wrapper, testes, pacote e `sam validate` em `us-east-2` |
+| AWS | Stack `tickets-api-demo` publicada pelo **console CloudFormation** na conta `161513061416`, região `us-east-2`; o proprietário informou `UPDATE_COMPLETE` em 07/11/2026 às 18:03:32 (UTC−03:00) |
+| Deploy por GitHub Actions | Pendente: OIDC no IAM está bloqueado no Free Account Plan informado; o workflow `Deploy` existe, mas não foi utilizado |
 
-O código está publicado e a CI anterior foi validada. O foco atual é preparar [o deploy manual via CloudFormation](docs/DEPLOY_MANUAL_AWS_FREE.md) em `us-east-2` sem criar recursos. O workflow de deploy permanece para uso futuro, com acionamento **somente manual**. Não execute esse workflow antes de ter uma forma de autenticação compatível e autorizada para a conta. O template SAM descreve a arquitetura pretendida; sua existência não significa que a AWS a esteja executando.
+O chamado fictício `b836be40-4614-4b93-a773-a74d6916ac13` foi apresentado no console DynamoDB com status `CLOSED` e `updatedAt` posterior a `createdAt`. A captura mostra a tela **Editar item**; a consulta e a listagem HTTP informadas pelo proprietário também retornaram o chamado fechado.
+
+![Atributos do chamado de demonstração exibidos no console DynamoDB](docs/images/dynamodb-ticket.png)
+
+Um `PATCH` de `CLOSED` para `OPEN` retornou HTTP 409. O evento JSON expandido no CloudWatch mostra `INVALID_TRANSITION`, método, rota, duração, ID do chamado e o mesmo `requestId` informado na resposta de erro.
+
+![Evento INVALID_TRANSITION expandido no CloudWatch Logs](docs/images/cloudwatch-invalid-transition.png)
+
+As [respostas observadas e demais evidências](docs/EVIDENCIAS_EXECUCAO.md) distinguem dados fornecidos pelo proprietário, capturas de console e verificações automatizadas. Faltam prints do resultado da stack, das chamadas HTTP, da CI e de um PR bloqueado por teste.
 
 ## Arquitetura
 
 ```mermaid
 flowchart LR
-  Cliente --> HTTP[API Gateway HTTP API]
-  HTTP --> Lambda[Lambda Java 21]
+  Cliente --> API[API Gateway HTTP API]
+  API --> Lambda[Lambda Java 21]
   Lambda --> Servico[TicketService]
   Servico --> Repo[TicketRepository]
   Repo --> DDB[(DynamoDB)]
   Lambda --> Logs[CloudWatch Logs]
-  GH[GitHub Actions] --> SAM[AWS SAM / CloudFormation]
-  SAM --> HTTP & Lambda & DDB & Logs
+  SAM[Template AWS SAM] --> CF[CloudFormation manual]
+  CF --> API & Lambda & DDB & Logs
+  CI[GitHub Actions CI] --> Testes[Testes e validação SAM]
 ```
 
-Uma Lambda atende cinco rotas. `ApiHandler` cuida de HTTP, JSON, códigos e logs; `TicketService` aplica as regras; `Ticket` representa o domínio; `DynamoTicketRepository` implementa a interface de persistência. O cliente AWS SDK v2 é estático e reutilizado entre invocações quentes. `TABLE_NAME` vem do SAM. Java 21 e Maven permitem desenvolvimento e testes comuns; SAM descreve os recursos; JUnit 5 e Mockito são dependências de teste, e o repositório em memória evita AWS nos testes unitários.
+Uma Lambda atende todas as rotas. `ApiHandler` cuida de HTTP, JSON, respostas e logs; `TicketService` aplica as regras; `Ticket` representa o domínio; `DynamoTicketRepository` implementa a interface de persistência. O cliente AWS SDK for Java v2 é reutilizado entre invocações quentes. O nome da tabela vem de `TABLE_NAME`. Maven monta o ZIP; JUnit 5 e Mockito cobrem o comportamento sem AWS nos testes. Não há Spring, containers, VPC, NAT ou domínio próprio.
 
-## Contrato da API
+## API e regras
 
-Base URL: output `ApiUrl` da stack. Todos os horários são ISO 8601 em UTC. `title` tem 1 a 120 caracteres; `description`, 1 a 2.000. Espaços nas pontas são removidos; valores só com espaços são inválidos. O ID é UUID. O status inicial é `OPEN`; as únicas transições são `OPEN → IN_PROGRESS → CLOSED`. O JSON deve ser objeto com apenas os campos previstos.
+Base URL: `https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com`. Ela pode deixar de responder quando a stack for removida.
 
-| Método e rota | Resultado |
+| Rota | Resposta principal |
 |---|---|
-| `POST /tickets` | 201, cria chamado |
-| `GET /tickets` | 200, lista com `limit` de 1 a 50 (padrão 20) e `nextToken` |
+| `POST /tickets` | 201; cria com status `OPEN` e UUID gerado pela aplicação |
+| `GET /tickets` | 200; `limit` de 1 a 50 (padrão 20) e `nextToken` |
 | `GET /tickets/{id}` | 200 ou 404 |
 | `PATCH /tickets/{id}/status` | 200, 404 ou 409 |
-| `GET /health` | 200, responde sem acessar o banco |
+| `GET /health` | 200; sem acesso ao banco |
 
-Exemplo de criação:
+`title` e `description` são obrigatórios, com limites de 120 e 2.000 caracteres. Espaços nas pontas são removidos. O JSON precisa ser válido e conter somente os campos previstos. Datas de criação e atualização usam UTC. As únicas transições são `OPEN → IN_PROGRESS → CLOSED`. A atualização condicional no DynamoDB exige que o item exista e mantenha o status lido, evitando recriação acidental e colisões concorrentes.
 
-```http
-POST /tickets HTTP/1.1
-Content-Type: application/json
+A listagem usa `Scan` para manter o projeto pequeno: não há ordenação garantida nem snapshot estável entre páginas. O custo de leitura cresce com o volume; uma aplicação maior precisaria modelar consultas e chaves de acesso.
 
-{"title":"Impressora sem papel","description":"Exemplo fictício"}
+### Chamadas reproduzíveis
+
+No PowerShell, use dados fictícios:
+
+```powershell
+$baseUrl = "https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com"
+Invoke-RestMethod "$baseUrl/health"
+
+$body = @{ title = "Exemplo fictício"; description = "Chamado de demonstração" } | ConvertTo-Json
+$ticket = Invoke-RestMethod "$baseUrl/tickets" -Method POST -ContentType "application/json" -Body $body
+$id = $ticket.id
+
+Invoke-RestMethod "$baseUrl/tickets/$id"
+Invoke-RestMethod "$baseUrl/tickets?limit=10"
+Invoke-RestMethod "$baseUrl/tickets/$id/status" -Method PATCH -ContentType "application/json" -Body '{"status":"IN_PROGRESS"}'
+Invoke-RestMethod "$baseUrl/tickets/$id/status" -Method PATCH -ContentType "application/json" -Body '{"status":"CLOSED"}'
 ```
+
+Criação retorna o chamado com `id`, `title`, `description`, `status`, `createdAt` e `updatedAt`. Listagem retorna `{"items":[...],"nextToken":null}` quando não há outra página. Se `nextToken` vier preenchido, envie-o na próxima consulta como valor opaco. Veja [requisições editáveis](requests.http) e [respostas reais fornecidas](docs/EVIDENCIAS_EXECUCAO.md).
+
+Erros seguem o mesmo formato e incluem `x-request-id` no cabeçalho:
 
 ```json
-{"id":"550e8400-e29b-41d4-a716-446655440000","title":"Impressora sem papel","description":"Exemplo fictício","status":"OPEN","createdAt":"2026-01-01T12:00:00Z","updatedAt":"2026-01-01T12:00:00Z"}
+{
+  "error": {
+    "requestId": "8fa8f900-eb48-4612-b3c3-bbc5e6c2e7e9",
+    "message": "Transição de status não permitida",
+    "code": "INVALID_TRANSITION"
+  }
+}
 ```
 
-Os valores acima são **ilustrativos**, não uma chamada executada. `Location` não é retornado; use o `id` no corpo. Exemplo de consulta e listagem:
+O exemplo acima é a **resposta HTTP 409 informada após o teste manual**. Entrada inválida retorna 400; chamado ausente, 404; transição proibida ou conflito concorrente, 409; falha inesperada, 500. Detalhes internos e stack traces não são enviados ao cliente.
 
-```http
-GET /tickets/550e8400-e29b-41d4-a716-446655440000 HTTP/1.1
-GET /tickets?limit=20 HTTP/1.1
+## Testes e CI
+
+Pré-requisitos locais: JDK 21 e acesso ao Maven Central na primeira execução. O Maven Wrapper baixa Maven 3.9.16.
+
+```powershell
+./mvnw.cmd -B clean verify
 ```
 
-```json
-{"items":[{"id":"550e8400-e29b-41d4-a716-446655440000","title":"Impressora sem papel","description":"Exemplo fictício","status":"OPEN","createdAt":"2026-01-01T12:00:00Z","updatedAt":"2026-01-01T12:00:00Z"}],"nextToken":null}
-```
+Em Linux/macOS: `bash ./mvnw -B clean verify`. Os testes não exigem AWS, Docker ou DynamoDB Local. Maven Shade gera `target/tickets-api.jar`; Maven Assembly coloca o JAR em `lib/` dentro de `deploy-artifacts/tickets-api-lambda.zip`. Artefatos locais são ignorados pelo Git. A CI roda em push na `main` e em pull requests; configura Java 21, executa o Wrapper e valida o SAM. Ela **não publica** na AWS.
 
-Quando `nextToken` vier preenchido, envie seu valor na próxima chamada. O token é opaco para o cliente. A lista usa **Scan** por simplicidade: não há ordenação garantida, e páginas podem mudar enquanto há gravações. Scan custa leituras proporcionais ao volume; para produção, modele chaves de acesso e paginação conforme as consultas reais. Nenhum índice foi criado sem necessidade.
+Não existe PR com evidência de teste defeituoso bloqueado. Essa demonstração pode ser feita em uma branch temporária, com um teste propositalmente falhando em PR, sem merge na `main`.
 
-Alteração de status:
+## Infraestrutura, deploy manual e IAM
 
-```http
-PATCH /tickets/550e8400-e29b-41d4-a716-446655440000/status HTTP/1.1
-Content-Type: application/json
+O [template SAM](template.yaml) descreve uma Lambda Java 21, uma HTTP API, uma tabela DynamoDB sob demanda, um grupo de logs com retenção de sete dias e permissões de execução restritas à tabela. O ZIP foi enviado manualmente ao bucket privado `haseo2g-tickets-api-artifacts-2026` como `tickets-api-lambda.zip`. O template carregado no console CloudFormation apontava para esse objeto S3 real; o template fonte do repositório mantém um `CodeUri` local para build e empacotamento.
 
-{"status":"IN_PROGRESS"}
-```
+A publicação usou a role de serviço `TicketsApiCloudFormationDeployRole` e a política personalizada `TicketsApiCloudFormationDeployRolePolicy`, criadas manualmente. Essa role administra os recursos da stack; a **role de execução da Lambda**, gerada pelo SAM, é outra role e só recebe as ações DynamoDB definidas no template e as permissões básicas de logs. A política de publicação não é de privilégio mínimo absoluto: operações do API Gateway com ID gerado exigiram escopo regional mais amplo.
 
-Resposta 200: o chamado completo com `status: "IN_PROGRESS"` e novo `updatedAt`. Para fechar, envie `{"status":"CLOSED"}`. Uma transição proibida retorna 409:
+Na criação inicial, eventos de autorização exigiram três ajustes: `cloudformation:CreateChangeSet` para o transform `Serverless-2016-10-31`, `apigateway:POST` para tags da HTTP API e `apigateway:TagResource` para o stage. Após os ajustes, a recuperação/atualização da stack foi informada como `UPDATE_COMPLETE`. Eram permissões de implantação, não defeitos do Java. Veja o [histórico e procedimento manual](docs/DEPLOY_MANUAL_AWS_FREE.md).
 
-```json
-{"error":{"code":"INVALID_TRANSITION","message":"Transição de status não permitida","requestId":"id-da-requisicao"}}
-```
+O workflow [Deploy](.github/workflows/deploy.yml) permanece disponível só por acionamento manual e requer OIDC. Ele **não foi usado** nesta publicação; o bloqueio do provedor OIDC no Free Account Plan mantém a automação pendente. Não há chaves AWS no repositório ou no workflow.
 
-Erros usam sempre `error.code`, `error.message` e `error.requestId`; o cabeçalho `x-request-id` repete o ID. 400 indica entrada inválida, 404 recurso/rota ausente, 409 regra ou concorrência, e 500 falha inesperada. Stack traces e detalhes internos não são enviados ao cliente. A escrita condicional do DynamoDB exige `attribute_exists(id)` e o status previamente lido; assim, um update de ID inexistente não cria item e duas transições simultâneas não passam sobre o mesmo estado.
+## Logs e investigação
 
-Veja chamadas editáveis em [requests.http](requests.http).
+Abra CloudWatch Logs e procure o grupo com prefixo `/aws/lambda/tickets-api-demo-TicketsFunction-`. Cada requisição produz JSON com `eventType`, `requestId`, `method`, `route`, `statusCode`, `durationMs` e, quando aplicável, `ticketId`. Pesquise pelo `requestId` devolvido no erro ou no cabeçalho `x-request-id` para encontrar a requisição. Não são registrados corpos completos, descrições ou credenciais. Linhas `START`, `END` e `REPORT` são emitidas pela plataforma Lambda.
 
-## Compilar e testar
+![Visão dos eventos de requisição e das linhas da plataforma no CloudWatch](docs/images/cloudwatch-logs.png)
 
-Pré requisitos: JDK 21 e acesso ao Maven Central na primeira execução. O wrapper baixa Maven 3.9.16.
+## Segurança, custo e remoção
 
-```bash
-bash ./mvnw -B verify
-```
+A API é pública e **não possui autenticação**; CORS não resolve isso. Use exclusivamente dados fictícios. O throttling da HTTP API (5 req/s, burst 10) e a concorrência reservada da Lambda (2) reduzem picos, mas não estabelecem um teto de gasto. A gratuidade depende de créditos, prazo, limites e uso da conta Free Account Plan. Confira a cobrança e remova o ambiente depois da apresentação.
 
-No Windows: `./mvnw.cmd -B clean verify` no PowerShell. Os testes usam repositório em memória; não precisam de credenciais AWS, Docker nem DynamoDB Local. Maven Shade gera `target/tickets-api.jar`; Maven Assembly o coloca em `lib/` dentro de `deploy-artifacts/tickets-api-lambda.zip`, o pacote referenciado pelo template SAM. O ZIP local ainda precisa ser enviado a um bucket S3 real por `sam package` antes de carregar o template empacotado no CloudFormation. Veja o [guia manual](docs/DEPLOY_MANUAL_AWS_FREE.md). Para validar a infraestrutura quando o AWS SAM CLI estiver instalado:
+Para remover, exclua a stack `tickets-api-demo` no CloudFormation em `us-east-2` e espere `DELETE_COMPLETE`. A tabela usa `DeletionPolicy: Delete`: **seus dados serão apagados**. Confirme a remoção da Lambda, API, log group e role de execução. Esvazie e exclua separadamente o bucket de artefatos **somente se ele for exclusivo do projeto**; trate versões e delete markers se houver versionamento. Revise também o bucket auxiliar do CloudFormation e a role de publicação, criados fora da stack, antes de removê-los. O [guia manual](docs/DEPLOY_MANUAL_AWS_FREE.md) detalha o procedimento.
 
-```bash
-sam validate --template-file template.yaml --region us-east-2
-```
+Para voltar a uma versão anterior do código, use `git revert` ou um checkout controlado do commit desejado, execute a CI e faça uma **nova publicação manual** após revisar template e artefato. Voltar o código **não restaura dados** do DynamoDB.
 
-## CI e preparo futuro da AWS
+Limitações proporcionais ao projeto: `Scan` sem ordenação ou snapshot, API pública e ausência de busca/filtros. Melhorias futuras: autenticação, consultas modeladas por chave e métricas/alertas se houver uso que justifique custo.
 
-A CI executa em push na `main` e em pull requests. Ela configura Java 21, roda testes e empacotamento pelo Maven Wrapper e valida o template com SAM CLI. A região `us-east-2` nesse comando apenas fornece o contexto exigido pelo validador; não há publicação nem uso de credenciais AWS. O workflow `Deploy` tem apenas `workflow_dispatch`: nenhum push ou CI bem-sucedido inicia deploy automaticamente.
+## Demonstração em cerca de cinco minutos
 
-**Próxima etapa na conta gratuita:** antes de criar qualquer recurso, verifique na documentação e no console da sua conta se Lambda, HTTP API, DynamoDB, CloudFormation e o método de publicação desejado estão disponíveis no Free Account Plan, além de limites e possíveis cobranças. Se OIDC continuar bloqueado, mantenha o deploy automatizado pendente. Uma publicação manual futura, se compatível e autorizada, pode usar uma sessão temporária de usuário com permissões específicas; não registre credenciais em arquivos versionados nem substitua OIDC por Access Keys permanentes no GitHub Actions. As instruções abaixo descrevem o cenário futuro com OIDC e devem ser usadas somente quando ele estiver disponível.
+1. **0:00–0:45** — Mostre este README, a arquitetura e a URL da API.
+2. **0:45–1:30** — Mostre os testes locais e a [CI aprovada](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867).
+3. **1:30–2:30** — Execute `GET /health`, consulte o chamado fictício e explique `OPEN → IN_PROGRESS → CLOSED`.
+4. **2:30–3:30** — Mostre o item no DynamoDB e a resposta 409 para transição proibida.
+5. **3:30–4:15** — Correlacione `requestId` da resposta com o JSON no CloudWatch.
+6. **4:15–5:00** — Explique o deploy manual, a separação das roles, custo e remoção.
 
-1. O código está no [repositório público](https://github.com/Haseo2g/tickets-api-portfolio), branch `main`. Para uma publicação futura, escolha conta e região AWS compatíveis com os recursos necessários.
-2. Instale AWS CLI e SAM CLI para empacotar, se houver uma sessão CLI temporária permitida. Crie **antes do primeiro deploy** um bucket S3 de artefatos em `us-east-2`, após verificar S3 e obter autorização. O `sam package` envia o ZIP que contém o JAR e gera um template com `CodeUri` real no S3. Escolha um nome exclusivo; configure política de ciclo de vida ou remova versões antigas depois da demonstração. O bucket é auxiliar e **não** é criado nem removido por esta stack.
-3. Crie o provedor OIDC `token.actions.githubusercontent.com` no IAM, audience `sts.amazonaws.com`. Crie uma role para GitHub Actions com a política de confiança abaixo, substituindo conta, organização e repositório. O `sub` com environment `demo` exige que o job use esse environment. Configure no GitHub Environment `demo` a restrição de implantação à branch `main` e, se desejado, aprovadores.
+## Prints para completar o portfólio
 
-```json
-{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Federated":"arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"},"Action":"sts:AssumeRoleWithWebIdentity","Condition":{"StringEquals":{"token.actions.githubusercontent.com:aud":"sts.amazonaws.com","token.actions.githubusercontent.com:sub":"repo:ORG/REPO:environment:demo"}}}]}
-```
+- [ ] CI aprovada — [execução real](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867); **[INSERIR PRINT: CI]**
+- [ ] PR com teste bloqueando alteração defeituosa — **[PENDENTE: execução real em branch separada]**
+- [ ] CloudFormation com `UPDATE_COMPLETE` — **[INSERIR PRINT: DEPLOY]**
+- [ ] Chamadas HTTP reais à API — **[INSERIR PRINT: HEALTH, TICKETS E ERRO]**
+- [x] Item no DynamoDB — [captura recebida](docs/images/dynamodb-ticket.png)
+- [x] Logs no CloudWatch — [evento expandido](docs/images/cloudwatch-invalid-transition.png) e [visão geral](docs/images/cloudwatch-logs.png)
 
-O formato do `sub` pode incluir IDs imutáveis em repositórios novos; confira a reivindicação real e ajuste o valor exato, sem usar curingas abrangentes. A restrição de branch fica nas regras do GitHub Environment; a role fica restrita ao repositório e ao environment. Não armazene chaves AWS no repositório.
+## Referências
 
-4. Conceda à role de publicação apenas os recursos e ações de que este template precisa. Separe essa role da **role de execução da Lambda**: a última é criada pelo SAM e só pode `PutItem`, `GetItem`, `Scan` e `UpdateItem` na tabela da stack, além das permissões básicas de logs providas pelo SAM. A role de publicação precisa operar CloudFormation na stack escolhida, enviar/ler objetos no bucket de artefatos, criar/atualizar/remover a HTTP API e a integração, a Lambda e suas permissões, a tabela DynamoDB, o log group, a role e política IAM da Lambda, e passar essa role à Lambda (`iam:PassRole` condicionado a `lambda.amazonaws.com`). `sam deploy` também consulta o estado da stack; o smoke test usa `cloudformation:DescribeStacks`. Escopo por ARN da stack, bucket e nomes/prefixos dedicados onde o serviço aceitar escopo; ações `List*`/`Describe*` que exigem `*` devem ser limitadas por condição quando possível. **Não use `AdministratorAccess` como padrão.** Uma alternativa mais controlada é uma role de serviço CloudFormation dedicada, com a role OIDC autorizada a passar apenas essa role; nesse caso adicione `--role-arn` ao comando de deploy.
-5. No GitHub Environment `demo`, defina as **variables** `AWS_ROLE_ARN`, `AWS_REGION`, `STACK_NAME` e `SAM_ARTIFACT_BUCKET`. Configure `STACK_NAME` como nome exclusivo, por exemplo `tickets-demo`. A role OIDC deve poder ser assumida somente pelo repositório/environment configurados. O workflow usa essas variables; não há secrets estáticos.
-
-Quando OIDC estiver disponível e a publicação for autorizada: Actions → Deploy → Run workflow, na `main`. O job repete testes e `sam validate` antes de publicar. O grupo de concorrência impede deploys simultâneos e o smoke test roda após a stack estabilizar. Para habilitar deploy automático no futuro, adicione de volta um gatilho condicionado ao sucesso da CI na `main` e revise a relação de confiança e as regras do environment antes de ativá-lo. **Nesta fase, o deploy automático está desabilitado.**
-
-Deploy local opcional, com credenciais temporárias e permissão explícita:
-
-```bash
-bash ./mvnw -B clean verify
-sam validate --template-file template.yaml --region REGIAO
-sam deploy --template-file template.yaml --stack-name tickets-demo --region REGIAO --s3-bucket BUCKET_DE_ARTEFATOS --capabilities CAPABILITY_IAM --no-confirm-changeset
-aws cloudformation describe-stacks --stack-name tickets-demo --query 'Stacks[0].Outputs'
-bash scripts/smoke.sh https://URL-DO-OUTPUT-ApiUrl
-```
-
-O roteiro [scripts/smoke.sh](scripts/smoke.sh) usa `curl` e `python3`: testa saúde, cria chamado fictício, consulta, lista, avança pelas transições e verifica 409 e 404. Executá-lo grava um item de demonstração. Se não houver credenciais ou autorização, não publique recursos; concluir o código e os testes locais é suficiente até a configuração acima.
-
-## Logs
-
-Abra CloudWatch Logs → `/aws/lambda/NOME_DA_FUNCAO` (output `FunctionName`); a retenção é de 7 dias. Cada requisição emite um JSON com `eventType`, `requestId`, `method`, `route`, `statusCode`, `durationMs` e, quando aplicável, `ticketId`. Busque pelo `requestId` recebido no cabeçalho ou no erro. Erros esperados têm códigos como `VALIDATION_ERROR`, `NOT_FOUND`, `INVALID_TRANSITION` e `CONCURRENT_UPDATE`; falhas inesperadas usam `UNEXPECTED_ERROR` no log e `INTERNAL_ERROR` ao cliente. O log não inclui corpo, descrição ou credenciais. A infraestrutura pode registrar também linhas de plataforma da Lambda.
-
-## Versões anteriores
-
-No GitHub, faça checkout do commit anterior na `main` por revert ou cherry-pick e verifique a CI; quando o deploy estiver habilitado, execute o workflow manual a partir de uma referência permitida pelo environment. O deploy atualiza **código e infraestrutura**, mas **não restaura dados** do DynamoDB. Faça backup de dados separadamente se essa necessidade surgir.
-
-## Custo, segurança e remoção
-
-A API é pública, sem autenticação. Throttling da API (5 req/s, burst 10) e concorrência reservada da Lambda (2) limitam picos, mas não constituem autenticação nem teto de gasto. DynamoDB usa cobrança sob demanda, Lambda 512 MB/10 s, e não há VPC, NAT, balanceador ou domínio próprio. **Não há promessa de custo zero**: gratuidade depende do plano, créditos, limites e uso da conta. Monitore cobrança e remova o ambiente após a apresentação.
-
-Para remover a stack **e todos os dados da tabela**:
-
-```bash
-aws cloudformation delete-stack --stack-name tickets-demo --region REGIAO
-aws cloudformation wait stack-delete-complete --stack-name tickets-demo --region REGIAO
-```
-
-Confirme que a stack desapareceu no CloudFormation. O template usa `DeletionPolicy: Delete` e `UpdateReplacePolicy: Delete` para a tabela; a exclusão é irreversível. Verifique e esvazie/remova separadamente o bucket S3 de artefatos criado no preparo, se ele for exclusivo deste projeto. Revogue ou exclua também a role OIDC e o provedor OIDC **apenas se forem exclusivos** deste projeto; remova as variables do GitHub Environment. Confira CloudWatch para qualquer log group remanescente. A stack define e remove seu log group explicitamente.
-
-Limitações proporcionais: listagem por Scan, sem ordenação/consistência de snapshot; API pública; sem busca, filtro ou autenticação. Evoluções possíveis: autenticação, modelo de acesso para consultas frequentes e observabilidade com métricas/alertas, quando houver uso real que justifique o custo.
-
-## Roteiro de demonstração (cerca de 5 minutos)
-
-1. **0:00–0:45**: mostre o diagrama e a estrutura simples das classes.
-2. **0:45–1:30**: execute `bash ./mvnw verify` e mostre testes de regra e erro.
-3. **1:30–2:15**: mostre a execução real da CI e o template SAM; explique que o deploy está pendente.
-4. **2:15–3:30**: apresente os exemplos de `requests.http` e as regras verificadas pelos testes. Após uma publicação futura, substitua pelos resultados reais da API.
-5. **3:30–4:15**: mostre o teste de erro 409. Após uma publicação futura, mostre também DynamoDB e CloudWatch.
-6. **4:15–5:00**: explique a restrição atual de OIDC, os limites de custo e a remoção planejada da stack.
-
-## Prints para o portfólio
-
-Adicione **capturas reais** após executar a esteira e publicar a stack. Não inclua dados pessoais, credenciais ou URLs que prefira manter privadas.
-
-- [ ] CI bem-sucedida — **[INSERIR PRINT: CI]**
-- [ ] Teste impedindo uma alteração defeituosa em PR — **[INSERIR PRINT: TESTE FALHANDO]**
-- [ ] Deploy concluído — **[INSERIR PRINT: DEPLOY]**
-- [ ] Chamadas reais à API, incluindo erro — **[INSERIR PRINT: API]**
-- [ ] Item persistido no DynamoDB — **[INSERIR PRINT: DYNAMODB]**
-- [ ] Logs JSON no CloudWatch — **[INSERIR PRINT: CLOUDWATCH]**
-
-## Referências oficiais consultadas
-
-- [Runtime Java 21 da Lambda](https://docs.aws.amazon.com/lambda/latest/dg/lambda-java.html)
-- [HTTP API no SAM](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-httpapi.html)
-- [Condições no DynamoDB](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html)
-- [OIDC GitHub para AWS](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws)
-- [GitHub OIDC claims](https://docs.github.com/en/actions/reference/security/oidc)
-- [setup-java](https://github.com/actions/setup-java), [setup-sam](https://github.com/aws-actions/setup-sam) e [configure-aws-credentials](https://github.com/aws-actions/configure-aws-credentials)
+- [Guia de deploy manual e fontes oficiais AWS](docs/DEPLOY_MANUAL_AWS_FREE.md)
+- [Contrato de requisições](requests.http)
+- [Resultados informados e evidências](docs/EVIDENCIAS_EXECUCAO.md)
