@@ -11,6 +11,7 @@ API pública de gerenciamento de chamados para demonstrar Java, regras de negóc
 | Aplicação | Java 21, cinco rotas e persistência no DynamoDB |
 | Testes unitários | 6 testes aprovados antes da publicação; executáveis sem conta AWS |
 | CI | [Execução no GitHub Actions](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867) aprovada: Maven Wrapper, testes, pacote e `sam validate` em `us-east-2` |
+| Demonstração de falha | [PR #1](https://github.com/Haseo2g/tickets-api-portfolio/pull/1) fechado sem merge; [CI reprovada pelo teste intencional](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42420319459) |
 | AWS | Stack `tickets-api-demo` publicada pelo **console CloudFormation** na conta `161513061416`, região `us-east-2`; o proprietário informou `UPDATE_COMPLETE` em 07/11/2026 às 18:03:32 (UTC−03:00) |
 | Deploy por GitHub Actions | Pendente: OIDC no IAM está bloqueado no Free Account Plan informado; o workflow `Deploy` existe, mas não foi utilizado |
 
@@ -22,7 +23,7 @@ Um `PATCH` de `CLOSED` para `OPEN` retornou HTTP 409. O evento JSON expandido no
 
 ![Evento INVALID_TRANSITION expandido no CloudWatch Logs](docs/images/cloudwatch-invalid-transition.png)
 
-As [respostas observadas e demais evidências](docs/EVIDENCIAS_EXECUCAO.md) distinguem dados fornecidos pelo proprietário, capturas de console e verificações automatizadas. Faltam prints do resultado da stack, das chamadas HTTP, da CI e de um PR bloqueado por teste.
+As [respostas observadas e demais evidências](docs/EVIDENCIAS_EXECUCAO.md) distinguem dados fornecidos pelo proprietário, capturas de console e verificações automatizadas. Faltam prints do resultado da stack, das chamadas HTTP e das execuções de CI.
 
 ## Arquitetura
 
@@ -101,7 +102,11 @@ Pré-requisitos locais: JDK 21 e acesso ao Maven Central na primeira execução.
 
 Em Linux/macOS: `bash ./mvnw -B clean verify`. Os testes não exigem AWS, Docker ou DynamoDB Local. Maven Shade gera `target/tickets-api.jar`; Maven Assembly coloca o JAR em `lib/` dentro de `deploy-artifacts/tickets-api-lambda.zip`. Artefatos locais são ignorados pelo Git. A CI roda em push na `main` e em pull requests; configura Java 21, executa o Wrapper e valida o SAM. Ela **não publica** na AWS.
 
-Não existe PR com evidência de teste defeituoso bloqueado. Essa demonstração pode ser feita em uma branch temporária, com um teste propositalmente falhando em PR, sem merge na `main`.
+### Demonstração de falha no CI
+
+Na branch temporária `demo/ci-failure`, o commit `c552a86` adicionou somente `CiFailureDemoTest.demoCiDetectsWrongInitialStatusExpectation`. O teste exige intencionalmente `CLOSED` para um chamado novo; a regra correta devolve `OPEN`. O [PR #1](https://github.com/Haseo2g/tickets-api-portfolio/pull/1), direcionado à `main`, disparou o [Actions reprovado](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42420319459): `mvnw verify` executou **7 testes, 1 falha**, com `expected: <CLOSED> but was: <OPEN>`. Os 6 testes originais passaram. O PR foi **fechado sem merge** e a branch remota foi mantida como evidência; o teste defeituoso não está na `main`.
+
+Em 07/11/2026, a API do GitHub informou que a `main` **não tinha branch protection nem ruleset aplicável exigindo checks aprovados**. Portanto, a execução comprova detecção pelo CI e a decisão de não integrar o defeito; **não comprova bloqueio técnico do botão de merge**. Veja o [registro da demonstração](docs/EVIDENCIAS_EXECUCAO.md).
 
 ## Infraestrutura, deploy manual e IAM
 
@@ -141,7 +146,7 @@ Limitações proporcionais ao projeto: `Scan` sem ordenação ou snapshot, API p
 ## Prints para completar o portfólio
 
 - [ ] CI aprovada — [execução real](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867); **[INSERIR PRINT: CI]**
-- [ ] PR com teste bloqueando alteração defeituosa — **[PENDENTE: execução real em branch separada]**
+- [x] PR fechado com teste intencional reprovado — [PR #1](https://github.com/Haseo2g/tickets-api-portfolio/pull/1) e [Actions](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42420319459); **[PENDENTE: PRINT DA FALHA]**
 - [ ] CloudFormation com `UPDATE_COMPLETE` — **[INSERIR PRINT: DEPLOY]**
 - [ ] Chamadas HTTP reais à API — **[INSERIR PRINT: HEALTH, TICKETS E ERRO]**
 - [x] Item no DynamoDB — [captura recebida](docs/images/dynamodb-ticket.png)

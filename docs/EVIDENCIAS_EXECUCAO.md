@@ -102,6 +102,17 @@ Segundo o relato da implantação, erros de autorização levaram à inclusão d
 - Print da CI aprovada; [link da execução](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867) já verificado.
 - Print do CloudFormation mostrando `UPDATE_COMPLETE`.
 - Prints das respostas HTTP reais de saúde, criação, consulta, listagem e erro.
-- PR em branch separada com CI reprovada por teste defeituoso. Não há PR desse tipo no histórico consultado; uma falha antiga em push na `main` não comprova esse cenário.
+- Print da execução reprovada do PR de demonstração; os links verificáveis estão abaixo.
 
 Nenhuma das capturas acima mostra credenciais. O alias `Haseo2g` exibido na interface é o mesmo identificador público do repositório.
+
+## Demonstração controlada de falha no CI
+
+- Branch remota preservada: `demo/ci-failure`, commit `c552a86dd5d1849bd24e69f4e3489e736bd2f92a`.
+- [PR #1 — Demo: CI detects intentional regression](https://github.com/Haseo2g/tickets-api-portfolio/pull/1): **CLOSED**, `mergedAt: null`; nenhuma alteração defeituosa entrou na `main`.
+- [Execução do Actions disparada pelo PR](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42420319459): workflow `CI`, job `verify`, conclusão `failure` no passo `bash ./mvnw -B verify`.
+- Teste: `CiFailureDemoTest.demoCiDetectsWrongInitialStatusExpectation`. Mensagem real: `DEMO INTENCIONAL: expectativa errada para comprovar a reprovação do CI ==> expected: <CLOSED> but was: <OPEN>`. O log registrou **7 testes, 1 falha, 0 erros, 0 ignorados**; os 6 testes originais passaram.
+
+O teste está apenas na branch de demonstração. Ele exige `CLOSED` para um chamado novo, embora a regra correta inicie em `OPEN`. A falha decorreu dessa asserção, não da infraestrutura ou das dependências. A execução reprovada e o PR permanecem consultáveis, mesmo após o fechamento sem merge.
+
+**Limite da evidência:** em 07/11/2026, `GET /branches/main/protection` retornou `404 Branch not protected`, `GET /rulesets` retornou `[]` e `GET /rules/branches/main` retornou `[]` na API do GitHub. Não havia exigência de checks aprovados para merge na `main`. A demonstração mostra que o CI detectou o defeito e que o PR foi fechado por decisão consciente; não mostra um bloqueio técnico de merge. Nenhuma regra de proteção foi alterada.
