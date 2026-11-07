@@ -8,7 +8,7 @@ Projeto de portfólio: uma API pública pequena, com regras de negócio, persist
 |---|---|
 | Implementação Java, testes, template SAM e workflows | Concluídos no código |
 | Testes e pacote locais | `./mvnw.cmd -B verify` em 07/11/2026: **6 testes, 0 falhas, BUILD SUCCESS**; JAR gerado em `target/tickets-api.jar` |
-| CI no GitHub | **Ainda não validada**; verificar a execução na aba **Actions** após o push |
+| CI no GitHub | **Validada** na [execução #2](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42399430980): testes, pacote e `sam validate` aprovados |
 | Infraestrutura AWS | **Não publicada**; nenhuma URL de API ou evidência de deploy é apresentada aqui |
 | Deploy por OIDC | **Pendente**: a conta AWS Free Account Plan informada bloqueia a configuração do provedor OIDC sem recursos avançados; não será feito upgrade nem uso de chaves permanentes |
 
@@ -107,7 +107,7 @@ A CI executa em push na `main` e em pull requests. Ela configura Java 21, roda t
 
 **Próxima etapa na conta gratuita:** antes de criar qualquer recurso, verifique na documentação e no console da sua conta se Lambda, HTTP API, DynamoDB, CloudFormation e o método de publicação desejado estão disponíveis no Free Account Plan, além de limites e possíveis cobranças. Se OIDC continuar bloqueado, mantenha o deploy automatizado pendente. Uma publicação manual futura, se compatível e autorizada, pode usar uma sessão temporária de usuário com permissões específicas; não registre credenciais em arquivos versionados nem substitua OIDC por Access Keys permanentes no GitHub Actions. As instruções abaixo descrevem o cenário futuro com OIDC e devem ser usadas somente quando ele estiver disponível.
 
-1. Escolha conta e região AWS, crie um repositório GitHub e publique estes arquivos na branch `main`.
+1. O código está no [repositório público](https://github.com/Haseo2g/tickets-api-portfolio), branch `main`. Para uma publicação futura, escolha conta e região AWS compatíveis com os recursos necessários.
 2. Instale AWS CLI e SAM CLI para deploy local, se desejar. Crie **antes do primeiro deploy** um bucket S3 de artefatos na mesma região. O SAM envia o JAR e o template empacotado a esse bucket. Escolha um nome exclusivo; configure política de ciclo de vida ou remova versões antigas depois da demonstração. O bucket é auxiliar e **não** é criado nem removido por esta stack.
 3. Crie o provedor OIDC `token.actions.githubusercontent.com` no IAM, audience `sts.amazonaws.com`. Crie uma role para GitHub Actions com a política de confiança abaixo, substituindo conta, organização e repositório. O `sub` com environment `demo` exige que o job use esse environment. Configure no GitHub Environment `demo` a restrição de implantação à branch `main` e, se desejado, aprovadores.
 
