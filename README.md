@@ -12,6 +12,7 @@ API pública de gerenciamento de chamados para demonstrar Java, regras de negóc
 | Testes unitários | 6 testes aprovados antes da publicação; executáveis sem conta AWS |
 | CI | [Execução no GitHub Actions](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867) aprovada: Maven Wrapper, testes, pacote e `sam validate` em `us-east-2` |
 | Demonstração de falha | [PR #1](https://github.com/Haseo2g/tickets-api-portfolio/pull/1) fechado sem merge; [CI reprovada pelo teste intencional](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42420319459) |
+| Paginação na AWS | [Teste real em 07/11/2026](docs/evidence/pagination-2026-11-07.json): 5 chamados criados, 4 páginas com `limit=2`, todos encontrados e nenhum ID duplicado nessa execução |
 | AWS | Stack `tickets-api-demo` publicada pelo **console CloudFormation** na conta `161513061416`, região `us-east-2`; o proprietário informou `UPDATE_COMPLETE` em 07/11/2026 às 18:03:32 (UTC−03:00) |
 | Deploy por GitHub Actions | Pendente: OIDC no IAM está bloqueado no Free Account Plan informado; o workflow `Deploy` existe, mas não foi utilizado |
 
@@ -57,6 +58,14 @@ Base URL: `https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com`. Ela pode dei
 `title` e `description` são obrigatórios, com limites de 120 e 2.000 caracteres. Espaços nas pontas são removidos. O JSON precisa ser válido e conter somente os campos previstos. Datas de criação e atualização usam UTC. As únicas transições são `OPEN → IN_PROGRESS → CLOSED`. A atualização condicional no DynamoDB exige que o item exista e mantenha o status lido, evitando recriação acidental e colisões concorrentes.
 
 A listagem usa `Scan` para manter o projeto pequeno: não há ordenação garantida nem snapshot estável entre páginas. O custo de leitura cresce com o volume; uma aplicação maior precisaria modelar consultas e chaves de acesso.
+
+Em 07/11/2026, o [script de paginação](scripts/test-pagination.ps1) percorreu a API publicada com `limit=2`. Encontrou os 5 chamados fictícios criados, sem IDs duplicados; as 4 páginas tiveram `2, 2, 2 e 0` itens. A última página vazia encerrou a navegação. Esse resultado vale para **a execução observada**: `Scan` não garante ausência de duplicações se a tabela mudar durante a leitura. O [relatório gerado](docs/evidence/pagination-2026-11-07.json) e o [registro de evidências](docs/EVIDENCIAS_EXECUCAO.md) guardam os IDs e as verificações.
+
+Para repetir (cada execução cria mais 5 chamados fictícios; não remove dados):
+
+```powershell
+pwsh -NoProfile -File scripts/test-pagination.ps1 -BaseUrl 'https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com'
+```
 
 ### Chamadas reproduzíveis
 

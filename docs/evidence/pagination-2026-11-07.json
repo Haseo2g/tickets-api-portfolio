@@ -1,0 +1,43 @@
+{
+  "result": "PASS",
+  "runId": "pagination-20261107T223826Z-2eab2b12",
+  "createdCount": 5,
+  "pageCount": 4,
+  "limit": 2,
+  "pageSizes": [
+    2,
+    2,
+    2,
+    0
+  ],
+  "foundCreatedCount": 5,
+  "createdIds": [
+    "9c78f27f-52dd-4cfd-8b01-677e0a9d743c",
+    "7bab538a-0199-4428-9a20-2f03b85ffaec",
+    "ac51067f-ef36-4eae-9802-31889b7e0dcd",
+    "f22098ff-748e-47f1-8778-e980acc69fb8",
+    "52af1abb-6ba3-405a-8eb0-cd5bd5b21813"
+  ],
+  "foundCreatedIds": [
+    "9c78f27f-52dd-4cfd-8b01-677e0a9d743c",
+    "7bab538a-0199-4428-9a20-2f03b85ffaec",
+    "ac51067f-ef36-4eae-9802-31889b7e0dcd",
+    "f22098ff-748e-47f1-8778-e980acc69fb8",
+    "52af1abb-6ba3-405a-8eb0-cd5bd5b21813"
+  ],
+  "seenIds": [
+    "9c78f27f-52dd-4cfd-8b01-677e0a9d743c",
+    "ac51067f-ef36-4eae-9802-31889b7e0dcd",
+    "b836be40-4614-4b93-a773-a74d6916ac13",
+    "f22098ff-748e-47f1-8778-e980acc69fb8",
+    "52af1abb-6ba3-405a-8eb0-cd5bd5b21813",
+    "7bab538a-0199-4428-9a20-2f03b85ffaec"
+  ],
+  "checks": [
+    "HTTP 201/200",
+    "5 IDs encontrados",
+    "máximo de 2 itens por página",
+    "IDs sem duplicação",
+    "nextToken termina sem repetição"
+  ]
+}

@@ -63,7 +63,23 @@ Base: `https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com`. O chamado conté
 }
 ```
 
-Uma lista com um item foi observada. **Paginação em múltiplas páginas ainda não foi verificada manualmente na AWS.**
+Uma lista com um item foi observada nessa primeira validação. A paginação em múltiplas páginas foi testada depois, conforme o registro abaixo.
+
+### Paginação real com múltiplas páginas — 07/11/2026
+
+O [script PowerShell](../scripts/test-pagination.ps1) foi executado contra a API publicada em `us-east-2`. A execução `pagination-20261107T223826Z-2eab2b12` criou **5 chamados fictícios** via `POST /tickets` (HTTP 201) e percorreu **4 páginas** via `GET /tickets?limit=2` (HTTP 200), com tamanhos `[2, 2, 2, 0]`. A quarta página veio vazia e sem `nextToken`, encerrando a navegação. O relatório bruto produzido pelo script está em [pagination-2026-11-07.json](evidence/pagination-2026-11-07.json).
+
+Os cinco IDs criados foram encontrados:
+
+- `9c78f27f-52dd-4cfd-8b01-677e0a9d743c`
+- `7bab538a-0199-4428-9a20-2f03b85ffaec`
+- `ac51067f-ef36-4eae-9802-31889b7e0dcd`
+- `f22098ff-748e-47f1-8778-e980acc69fb8`
+- `52af1abb-6ba3-405a-8eb0-cd5bd5b21813`
+
+O script também confirmou que nenhuma página excedeu dois itens, nenhum ID apareceu duas vezes, nenhum `nextToken` se repetiu e o limite máximo de páginas não foi atingido. Foram vistos **6 IDs únicos** ao todo, incluindo o chamado anterior. Resultado: **PASS**, sem falhas nessa execução.
+
+Para reproduzir da raiz do projeto, use `pwsh -NoProfile -File scripts/test-pagination.ps1 -BaseUrl 'https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com'`. Cada repetição cria cinco novos itens fictícios; o script não altera nem remove os preexistentes. Como a listagem usa DynamoDB `Scan`, esta evidência não implica ordenação estável, snapshot consistente ou ausência garantida de duplicações se houver escritas concorrentes.
 
 ### Transição proibida
 

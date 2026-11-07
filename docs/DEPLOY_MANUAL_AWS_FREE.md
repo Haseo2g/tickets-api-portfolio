@@ -69,7 +69,7 @@ O [workflow Deploy](../.github/workflows/deploy.yml) continua somente com `workf
 
 ## Smoke test e diagnóstico
 
-O proprietário informou testes manuais de `GET /health`, `POST /tickets`, `GET /tickets/{id}`, `GET /tickets`, transições `OPEN → IN_PROGRESS → CLOSED` e erro HTTP 409. Veja [respostas e capturas](EVIDENCIAS_EXECUCAO.md). Paginação com múltiplas páginas não foi testada manualmente na AWS.
+O proprietário informou testes manuais de `GET /health`, `POST /tickets`, `GET /tickets/{id}`, `GET /tickets`, transições `OPEN → IN_PROGRESS → CLOSED` e erro HTTP 409. A paginação com múltiplas páginas foi validada depois por [script PowerShell](../scripts/test-pagination.ps1) contra a API publicada. Veja [respostas, relatório e capturas](EVIDENCIAS_EXECUCAO.md).
 
 Para repetir um smoke test completo em uma stack autorizada, após obter `ApiUrl` real:
 
