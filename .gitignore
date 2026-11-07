@@ -2,6 +2,7 @@
 target/
 work/
 outputs/
+deploy-artifacts/
 *.log
 
 # IDEs

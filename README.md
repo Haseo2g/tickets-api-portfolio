@@ -7,12 +7,12 @@ Projeto de portfólio: uma API pública pequena, com regras de negócio, persist
 | Etapa | Estado |
 |---|---|
 | Implementação Java, testes, template SAM e workflows | Concluídos no código |
-| Testes e pacote locais | `./mvnw.cmd -B verify` em 07/11/2026: **6 testes, 0 falhas, BUILD SUCCESS**; JAR gerado em `target/tickets-api.jar` |
+| Testes e pacote locais | `./mvnw.cmd -B clean verify` em 07/11/2026: **6 testes, 0 falhas, BUILD SUCCESS**; JAR em `target/tickets-api.jar` e ZIP para Lambda em `deploy-artifacts/tickets-api-lambda.zip` |
 | CI no GitHub | **Validada** na [execução #2](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42399430980): testes, pacote e `sam validate` aprovados |
 | Infraestrutura AWS | **Não publicada**; nenhuma URL de API ou evidência de deploy é apresentada aqui |
 | Deploy por OIDC | **Pendente**: a conta AWS Free Account Plan informada bloqueia a configuração do provedor OIDC sem recursos avançados; não será feito upgrade nem uso de chaves permanentes |
 
-O foco atual é publicar o código e validar a CI. O workflow de deploy permanece para uso futuro, com acionamento **somente manual**. Não execute esse workflow antes de ter uma forma de autenticação compatível e autorizada para a conta. O template SAM descreve a arquitetura pretendida; sua existência não significa que a AWS a esteja executando.
+O código está publicado e a CI anterior foi validada. O foco atual é preparar [o deploy manual via CloudFormation](docs/DEPLOY_MANUAL_AWS_FREE.md) em `us-east-2` sem criar recursos. O workflow de deploy permanece para uso futuro, com acionamento **somente manual**. Não execute esse workflow antes de ter uma forma de autenticação compatível e autorizada para a conta. O template SAM descreve a arquitetura pretendida; sua existência não significa que a AWS a esteja executando.
 
 ## Arquitetura
 
@@ -95,20 +95,20 @@ Pré requisitos: JDK 21 e acesso ao Maven Central na primeira execução. O wrap
 bash ./mvnw -B verify
 ```
 
-No Windows: `./mvnw.cmd -B verify` no PowerShell. Os testes usam repositório em memória; não precisam de credenciais AWS, Docker nem DynamoDB Local. O pacote de deploy é `target/tickets-api.jar`. Para validar a infraestrutura quando o AWS SAM CLI estiver instalado:
+No Windows: `./mvnw.cmd -B clean verify` no PowerShell. Os testes usam repositório em memória; não precisam de credenciais AWS, Docker nem DynamoDB Local. Maven Shade gera `target/tickets-api.jar`; Maven Assembly o coloca em `lib/` dentro de `deploy-artifacts/tickets-api-lambda.zip`, o pacote referenciado pelo template SAM. O ZIP local ainda precisa ser enviado a um bucket S3 real por `sam package` antes de carregar o template empacotado no CloudFormation. Veja o [guia manual](docs/DEPLOY_MANUAL_AWS_FREE.md). Para validar a infraestrutura quando o AWS SAM CLI estiver instalado:
 
 ```bash
-sam validate --template-file template.yaml --region us-east-1
+sam validate --template-file template.yaml --region us-east-2
 ```
 
 ## CI e preparo futuro da AWS
 
-A CI executa em push na `main` e em pull requests. Ela configura Java 21, roda testes e empacotamento pelo Maven Wrapper e valida o template com SAM CLI. A região `us-east-1` nesse comando apenas fornece o contexto exigido pelo validador; não há publicação nem uso de credenciais AWS. O workflow `Deploy` tem apenas `workflow_dispatch`: nenhum push ou CI bem-sucedido inicia deploy automaticamente.
+A CI executa em push na `main` e em pull requests. Ela configura Java 21, roda testes e empacotamento pelo Maven Wrapper e valida o template com SAM CLI. A região `us-east-2` nesse comando apenas fornece o contexto exigido pelo validador; não há publicação nem uso de credenciais AWS. O workflow `Deploy` tem apenas `workflow_dispatch`: nenhum push ou CI bem-sucedido inicia deploy automaticamente.
 
 **Próxima etapa na conta gratuita:** antes de criar qualquer recurso, verifique na documentação e no console da sua conta se Lambda, HTTP API, DynamoDB, CloudFormation e o método de publicação desejado estão disponíveis no Free Account Plan, além de limites e possíveis cobranças. Se OIDC continuar bloqueado, mantenha o deploy automatizado pendente. Uma publicação manual futura, se compatível e autorizada, pode usar uma sessão temporária de usuário com permissões específicas; não registre credenciais em arquivos versionados nem substitua OIDC por Access Keys permanentes no GitHub Actions. As instruções abaixo descrevem o cenário futuro com OIDC e devem ser usadas somente quando ele estiver disponível.
 
 1. O código está no [repositório público](https://github.com/Haseo2g/tickets-api-portfolio), branch `main`. Para uma publicação futura, escolha conta e região AWS compatíveis com os recursos necessários.
-2. Instale AWS CLI e SAM CLI para deploy local, se desejar. Crie **antes do primeiro deploy** um bucket S3 de artefatos na mesma região. O SAM envia o JAR e o template empacotado a esse bucket. Escolha um nome exclusivo; configure política de ciclo de vida ou remova versões antigas depois da demonstração. O bucket é auxiliar e **não** é criado nem removido por esta stack.
+2. Instale AWS CLI e SAM CLI para empacotar, se houver uma sessão CLI temporária permitida. Crie **antes do primeiro deploy** um bucket S3 de artefatos em `us-east-2`, após verificar S3 e obter autorização. O `sam package` envia o ZIP que contém o JAR e gera um template com `CodeUri` real no S3. Escolha um nome exclusivo; configure política de ciclo de vida ou remova versões antigas depois da demonstração. O bucket é auxiliar e **não** é criado nem removido por esta stack.
 3. Crie o provedor OIDC `token.actions.githubusercontent.com` no IAM, audience `sts.amazonaws.com`. Crie uma role para GitHub Actions com a política de confiança abaixo, substituindo conta, organização e repositório. O `sub` com environment `demo` exige que o job use esse environment. Configure no GitHub Environment `demo` a restrição de implantação à branch `main` e, se desejado, aprovadores.
 
 ```json
@@ -125,7 +125,7 @@ Quando OIDC estiver disponível e a publicação for autorizada: Actions → Dep
 Deploy local opcional, com credenciais temporárias e permissão explícita:
 
 ```bash
-bash ./mvnw -B verify
+bash ./mvnw -B clean verify
 sam validate --template-file template.yaml --region REGIAO
 sam deploy --template-file template.yaml --stack-name tickets-demo --region REGIAO --s3-bucket BUCKET_DE_ARTEFATOS --capabilities CAPABILITY_IAM --no-confirm-changeset
 aws cloudformation describe-stacks --stack-name tickets-demo --query 'Stacks[0].Outputs'

@@ -14,5 +14,6 @@
     <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.14.0</version></plugin>
     <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.5.2</version></plugin>
     <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-shade-plugin</artifactId><version>3.6.0</version><executions><execution><phase>package</phase><goals><goal>shade</goal></goals><configuration><finalName>tickets-api</finalName><createDependencyReducedPom>false</createDependencyReducedPom></configuration></execution></executions></plugin>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-assembly-plugin</artifactId><version>3.8.0</version><configuration><descriptors><descriptor>src/assembly/lambda.xml</descriptor></descriptors><outputDirectory>${project.basedir}/deploy-artifacts</outputDirectory><finalName>tickets-api</finalName></configuration><executions><execution><phase>package</phase><goals><goal>single</goal></goals></execution></executions></plugin>
   </plugins></build>
 </project>

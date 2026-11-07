@@ -26,7 +26,7 @@ Resources:
     Properties:
       Runtime: java21
       Handler: dev.portfolio.tickets.ApiHandler::handleRequest
-      CodeUri: target/tickets-api.jar
+      CodeUri: deploy-artifacts/tickets-api-lambda.zip
       MemorySize: 512
       Timeout: 10
       ReservedConcurrentExecutions: 2

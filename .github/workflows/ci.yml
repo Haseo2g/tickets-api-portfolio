@@ -17,4 +17,4 @@ jobs:
           cache: maven
       - uses: aws-actions/setup-sam@v3
       - run: bash ./mvnw -B verify
-      - run: sam validate --template-file template.yaml --region us-east-1
+      - run: sam validate --template-file template.yaml --region us-east-2
