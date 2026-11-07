@@ -1,6 +1,6 @@
 # Evidências da publicação e dos testes
 
-Os resultados HTTP e o estado final do CloudFormation abaixo foram **informados pelo proprietário após testes manuais em 07/11/2026**. As três capturas recebidas nesta conversa foram copiadas sem alterações para `docs/images/`. A [execução de CI](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867) foi consultada no GitHub e consta como aprovada. Este registro não substitui o histórico de eventos da conta AWS.
+Os primeiros resultados HTTP e o histórico do CloudFormation foram informados pelo proprietário após testes manuais em 07/11/2026. As capturas recebidas foram copiadas sem alterações para `docs/images/`. Uma nova consulta HTTP somente de leitura a `GET /tickets` confirmou seis registros e foi salva em [JSON completo](evidence/tickets-list-2026-11-07.json). As execuções de [CI aprovada](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42421693938) e [CI reprovada](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42420319459) foram conferidas no GitHub. Este registro não substitui o histórico de eventos da conta AWS.
 
 ## Infraestrutura informada
 
@@ -16,6 +16,10 @@ Os resultados HTTP e o estado final do CloudFormation abaixo foram **informados 
 
 A role de serviço da stack é distinta da role de execução da Lambda criada pelo SAM. A publicação foi **manual pelo console CloudFormation**, após uma criação parcialmente bem-sucedida e uma operação de recuperação/atualização. Não houve deploy pelo GitHub Actions.
 
+![Stack tickets-api-demo em UPDATE_COMPLETE no console CloudFormation](images/cloudformation-deploy.png)
+
+*A captura mostra a stack e seu status final; o horário exibido na tabela é o de criação da stack.*
+
 ## Testes HTTP manuais informados
 
 Base: `https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com`. O chamado contém dados fictícios. A URL pode deixar de funcionar após a remoção da stack.
@@ -27,6 +31,8 @@ Base: `https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com`. O chamado conté
 ```json
 {"status":"ok"}
 ```
+
+HTTP 200, conforme o teste manual informado.
 
 ### Criação e consulta
 
@@ -43,7 +49,20 @@ Base: `https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com`. O chamado conté
 }
 ```
 
-`GET /tickets/b836be40-4614-4b93-a773-a74d6916ac13` retornou o registro esperado. O proprietário testou `OPEN → IN_PROGRESS → CLOSED` por `PATCH /tickets/{id}/status`.
+`GET /tickets/b836be40-4614-4b93-a773-a74d6916ac13` retornou HTTP 200 com o registro fechado:
+
+```json
+{
+  "id": "b836be40-4614-4b93-a773-a74d6916ac13",
+  "title": "Teste de deploy AWS",
+  "description": "Primeiro chamado real do portfolio Java 21",
+  "status": "CLOSED",
+  "createdAt": "2026-11-07T21:06:33.160255145Z",
+  "updatedAt": "2026-11-07T21:08:07.700711397Z"
+}
+```
+
+O proprietário testou `OPEN → IN_PROGRESS → CLOSED` por `PATCH /tickets/{id}/status`.
 
 ### Listagem
 
@@ -65,6 +84,8 @@ Base: `https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com`. O chamado conté
 
 Uma lista com um item foi observada nessa primeira validação. A paginação em múltiplas páginas foi testada depois, conforme o registro abaixo.
 
+Uma consulta posterior a `GET /tickets` respondeu **HTTP 200**, com seis chamados fictícios e `nextToken: null`. A [resposta JSON completa](evidence/tickets-list-2026-11-07.json) inclui o chamado original e os cinco criados no teste de paginação. A ordem observada não constitui contrato da API.
+
 ### Paginação real com múltiplas páginas — 07/11/2026
 
 O [script PowerShell](../scripts/test-pagination.ps1) foi executado contra a API publicada em `us-east-2`. A execução `pagination-20261107T223826Z-2eab2b12` criou **5 chamados fictícios** via `POST /tickets` (HTTP 201) e percorreu **4 páginas** via `GET /tickets?limit=2` (HTTP 200), com tamanhos `[2, 2, 2, 0]`. A quarta página veio vazia e sem `nextToken`, encerrando a navegação. O relatório bruto produzido pelo script está em [pagination-2026-11-07.json](evidence/pagination-2026-11-07.json).
@@ -78,6 +99,34 @@ Os cinco IDs criados foram encontrados:
 - `52af1abb-6ba3-405a-8eb0-cd5bd5b21813`
 
 O script também confirmou que nenhuma página excedeu dois itens, nenhum ID apareceu duas vezes, nenhum `nextToken` se repetiu e o limite máximo de páginas não foi atingido. Foram vistos **6 IDs únicos** ao todo, incluindo o chamado anterior. Resultado: **PASS**, sem falhas nessa execução.
+
+O proprietário forneceu esta resposta HTTP 200 de uma página de `GET /tickets?limit=2`:
+
+```json
+{
+  "items": [
+    {
+      "id": "9c78f27f-52dd-4cfd-8b01-677e0a9d743c",
+      "title": "pagination-20261107T223826Z-2eab2b12-1",
+      "description": "Chamado fictício para validação de paginação do portfólio.",
+      "status": "OPEN",
+      "createdAt": "2026-11-07T22:38:24.651283894Z",
+      "updatedAt": "2026-11-07T22:38:24.651283894Z"
+    },
+    {
+      "id": "ac51067f-ef36-4eae-9802-31889b7e0dcd",
+      "title": "pagination-20261107T223826Z-2eab2b12-3",
+      "description": "Chamado fictício para validação de paginação do portfólio.",
+      "status": "OPEN",
+      "createdAt": "2026-11-07T22:38:28.236737309Z",
+      "updatedAt": "2026-11-07T22:38:28.236737309Z"
+    }
+  ],
+  "nextToken": "YWM1MTA2N2YtZWYzNi00ZWFlLTk4MDItMzE4ODliN2UwZGNk"
+}
+```
+
+`nextToken` é opaco e deve ser codificado na URL da próxima consulta. O `Scan` não garante ordenação ou snapshot consistente.
 
 Para reproduzir da raiz do projeto, use `pwsh -NoProfile -File scripts/test-pagination.ps1 -BaseUrl 'https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com'`. Cada repetição cria cinco novos itens fictícios; o script não altera nem remove os preexistentes. Como a listagem usa DynamoDB `Scan`, esta evidência não implica ordenação estável, snapshot consistente ou ausência garantida de duplicações se houver escritas concorrentes.
 
@@ -94,6 +143,8 @@ Um `PATCH` de `CLOSED` para `OPEN` respondeu HTTP `409 Conflict`:
   }
 }
 ```
+
+O `requestId` acima corresponde ao evento `INVALID_TRANSITION` expandido no CloudWatch mais abaixo.
 
 ## DynamoDB e CloudWatch
 
@@ -113,14 +164,17 @@ As linhas `START`, `END` e `REPORT` são da plataforma Lambda; os eventos JSON s
 
 Segundo o relato da implantação, erros de autorização levaram à inclusão de `cloudformation:CreateChangeSet` para o transform `Serverless-2016-10-31`, `apigateway:POST` para o recurso de tags da HTTP API e `apigateway:TagResource` para o stage. A terceira correção precedeu o `UPDATE_COMPLETE` informado. Esses ajustes dizem respeito à publicação da infraestrutura, não ao Java. A política foi criada manualmente na AWS; o JSON local anterior à publicação, ignorado pelo Git, **não é uma cópia confirmada da política final**.
 
-## Evidências pendentes
+## CI: capturas e execuções
 
-- Print da CI aprovada; [link da execução](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867) já verificado.
-- Print do CloudFormation mostrando `UPDATE_COMPLETE`.
-- Prints das respostas HTTP reais de saúde, criação, consulta, listagem e erro.
-- Print da execução reprovada do PR de demonstração; os links verificáveis estão abaixo.
+![Execução aprovada do job verify no GitHub Actions](images/ci-success.png)
 
-Nenhuma das capturas acima mostra credenciais. O alias `Haseo2g` exibido na interface é o mesmo identificador público do repositório.
+*[Execução aprovada](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42421693938) para o commit `213e88e` da `main`.*
+
+![Execução reprovada do job verify no PR 1](images/ci-failure.png)
+
+*[Execução reprovada](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42420319459) do [PR #1 fechado sem merge](https://github.com/Haseo2g/tickets-api-portfolio/pull/1); o detalhe da asserção está no log do job.*
+
+As capturas não mostram credenciais. O alias `Haseo2g` exibido na interface é o identificador público do repositório.
 
 ## Demonstração controlada de falha no CI
 

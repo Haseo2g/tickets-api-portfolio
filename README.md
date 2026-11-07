@@ -2,7 +2,7 @@
 
 API pública de gerenciamento de chamados para demonstrar Java, regras de negócio, DynamoDB, tratamento de erros, logs estruturados, testes e integração contínua. A aplicação foi **publicada manualmente** com AWS SAM e CloudFormation na região `us-east-2`. Use somente **dados fictícios**: esta versão não tem autenticação.
 
-**[API publicada](https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com/health)** · **[CI aprovada](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867)** · **[Template SAM](template.yaml)** · **[Deploy manual](docs/DEPLOY_MANUAL_AWS_FREE.md)**
+**[API publicada](https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com/health)** · **[CI aprovada](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42421693938)** · **[Template SAM](template.yaml)** · **[Deploy manual](docs/DEPLOY_MANUAL_AWS_FREE.md)**
 
 ## Estado e evidências
 
@@ -10,21 +10,13 @@ API pública de gerenciamento de chamados para demonstrar Java, regras de negóc
 |---|---|
 | Aplicação | Java 21, cinco rotas e persistência no DynamoDB |
 | Testes unitários | 6 testes aprovados antes da publicação; executáveis sem conta AWS |
-| CI | [Execução no GitHub Actions](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867) aprovada: Maven Wrapper, testes, pacote e `sam validate` em `us-east-2` |
+| CI | [Execução no GitHub Actions](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42421693938) aprovada no commit `213e88e`: Maven Wrapper, testes, pacote e `sam validate` em `us-east-2` |
 | Demonstração de falha | [PR #1](https://github.com/Haseo2g/tickets-api-portfolio/pull/1) fechado sem merge; [CI reprovada pelo teste intencional](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42420319459) |
 | Paginação na AWS | [Teste real em 07/11/2026](docs/evidence/pagination-2026-11-07.json): 5 chamados criados, 4 páginas com `limit=2`, todos encontrados e nenhum ID duplicado nessa execução |
-| AWS | Stack `tickets-api-demo` publicada pelo **console CloudFormation** na conta `161513061416`, região `us-east-2`; o proprietário informou `UPDATE_COMPLETE` em 07/11/2026 às 18:03:32 (UTC−03:00) |
+| AWS | Stack `tickets-api-demo` publicada pelo **console CloudFormation** na conta `161513061416`, região `us-east-2`; captura do console mostra `UPDATE_COMPLETE` |
 | Deploy por GitHub Actions | Pendente: OIDC no IAM está bloqueado no Free Account Plan informado; o workflow `Deploy` existe, mas não foi utilizado |
 
-O chamado fictício `b836be40-4614-4b93-a773-a74d6916ac13` foi apresentado no console DynamoDB com status `CLOSED` e `updatedAt` posterior a `createdAt`. A captura mostra a tela **Editar item**; a consulta e a listagem HTTP informadas pelo proprietário também retornaram o chamado fechado.
-
-![Atributos do chamado de demonstração exibidos no console DynamoDB](docs/images/dynamodb-ticket.png)
-
-Um `PATCH` de `CLOSED` para `OPEN` retornou HTTP 409. O evento JSON expandido no CloudWatch mostra `INVALID_TRANSITION`, método, rota, duração, ID do chamado e o mesmo `requestId` informado na resposta de erro.
-
-![Evento INVALID_TRANSITION expandido no CloudWatch Logs](docs/images/cloudwatch-invalid-transition.png)
-
-As [respostas observadas e demais evidências](docs/EVIDENCIAS_EXECUCAO.md) distinguem dados fornecidos pelo proprietário, capturas de console e verificações automatizadas. Faltam prints do resultado da stack, das chamadas HTTP e das execuções de CI.
+As capturas de CI, CloudFormation, DynamoDB e CloudWatch aparecem nas seções relacionadas. O [registro de evidências](docs/EVIDENCIAS_EXECUCAO.md) separa os testes automatizados, as respostas HTTP e as capturas do console.
 
 ## Arquitetura
 
@@ -67,6 +59,83 @@ Para repetir (cada execução cria mais 5 chamados fictícios; não remove dados
 pwsh -NoProfile -File scripts/test-pagination.ps1 -BaseUrl 'https://k9okaxkcpg.execute-api.us-east-2.amazonaws.com'
 ```
 
+## Respostas HTTP reais
+
+As respostas abaixo foram observadas na API publicada. Em 07/11/2026, uma nova consulta somente de leitura a `GET /tickets` retornou HTTP 200 com os seis chamados fictícios e `nextToken: null`. O exemplo compacto omite quatro registros e os demais campos dos dois exibidos; a [resposta completa](docs/evidence/tickets-list-2026-11-07.json) preserva todos os valores.
+
+`GET /health` — HTTP 200:
+
+```json
+{"status":"ok"}
+```
+
+`GET /tickets` — HTTP 200, trecho da resposta:
+
+```json
+{
+  "items": [
+    {"id":"9c78f27f-52dd-4cfd-8b01-677e0a9d743c","status":"OPEN"},
+    {"id":"b836be40-4614-4b93-a773-a74d6916ac13","status":"CLOSED"}
+  ],
+  "nextToken": null
+}
+```
+
+`GET /tickets?limit=2` — HTTP 200; resposta de página fornecida pelo proprietário após o [teste de paginação](docs/evidence/pagination-2026-11-07.json):
+
+```json
+{
+  "items": [
+    {
+      "id": "9c78f27f-52dd-4cfd-8b01-677e0a9d743c",
+      "title": "pagination-20261107T223826Z-2eab2b12-1",
+      "description": "Chamado fictício para validação de paginação do portfólio.",
+      "status": "OPEN",
+      "createdAt": "2026-11-07T22:38:24.651283894Z",
+      "updatedAt": "2026-11-07T22:38:24.651283894Z"
+    },
+    {
+      "id": "ac51067f-ef36-4eae-9802-31889b7e0dcd",
+      "title": "pagination-20261107T223826Z-2eab2b12-3",
+      "description": "Chamado fictício para validação de paginação do portfólio.",
+      "status": "OPEN",
+      "createdAt": "2026-11-07T22:38:28.236737309Z",
+      "updatedAt": "2026-11-07T22:38:28.236737309Z"
+    }
+  ],
+  "nextToken": "YWM1MTA2N2YtZWYzNi00ZWFlLTk4MDItMzE4ODliN2UwZGNk"
+}
+```
+
+`nextToken` é um cursor opaco: envie seu valor, codificado para URL, na consulta seguinte. O `Scan` não promete a mesma ordem nem um snapshot entre consultas.
+
+`GET /tickets/b836be40-4614-4b93-a773-a74d6916ac13` — HTTP 200:
+
+```json
+{
+  "id": "b836be40-4614-4b93-a773-a74d6916ac13",
+  "title": "Teste de deploy AWS",
+  "description": "Primeiro chamado real do portfolio Java 21",
+  "status": "CLOSED",
+  "createdAt": "2026-11-07T21:06:33.160255145Z",
+  "updatedAt": "2026-11-07T21:08:07.700711397Z"
+}
+```
+
+`PATCH /tickets/{id}/status` — HTTP 409 após tentar `CLOSED → OPEN`:
+
+```json
+{
+  "error": {
+    "requestId": "8fa8f900-eb48-4612-b3c3-bbc5e6c2e7e9",
+    "message": "Transição de status não permitida",
+    "code": "INVALID_TRANSITION"
+  }
+}
+```
+
+O mesmo `requestId` aparece no evento JSON do CloudWatch mostrado abaixo.
+
 ### Chamadas reproduzíveis
 
 No PowerShell, use dados fictícios:
@@ -85,21 +154,7 @@ Invoke-RestMethod "$baseUrl/tickets/$id/status" -Method PATCH -ContentType "appl
 Invoke-RestMethod "$baseUrl/tickets/$id/status" -Method PATCH -ContentType "application/json" -Body '{"status":"CLOSED"}'
 ```
 
-Criação retorna o chamado com `id`, `title`, `description`, `status`, `createdAt` e `updatedAt`. Listagem retorna `{"items":[...],"nextToken":null}` quando não há outra página. Se `nextToken` vier preenchido, envie-o na próxima consulta como valor opaco. Veja [requisições editáveis](requests.http) e [respostas reais fornecidas](docs/EVIDENCIAS_EXECUCAO.md).
-
-Erros seguem o mesmo formato e incluem `x-request-id` no cabeçalho:
-
-```json
-{
-  "error": {
-    "requestId": "8fa8f900-eb48-4612-b3c3-bbc5e6c2e7e9",
-    "message": "Transição de status não permitida",
-    "code": "INVALID_TRANSITION"
-  }
-}
-```
-
-O exemplo acima é a **resposta HTTP 409 informada após o teste manual**. Entrada inválida retorna 400; chamado ausente, 404; transição proibida ou conflito concorrente, 409; falha inesperada, 500. Detalhes internos e stack traces não são enviados ao cliente.
+Criação retorna o chamado com `id`, `title`, `description`, `status`, `createdAt` e `updatedAt`. Veja também [requisições editáveis](requests.http) e [evidências detalhadas](docs/EVIDENCIAS_EXECUCAO.md). Erros incluem `x-request-id` no cabeçalho. Entrada inválida retorna 400; chamado ausente, 404; transição proibida ou conflito concorrente, 409; falha inesperada, 500. Detalhes internos e stack traces não são enviados ao cliente.
 
 ## Testes e CI
 
@@ -111,9 +166,17 @@ Pré-requisitos locais: JDK 21 e acesso ao Maven Central na primeira execução.
 
 Em Linux/macOS: `bash ./mvnw -B clean verify`. Os testes não exigem AWS, Docker ou DynamoDB Local. Maven Shade gera `target/tickets-api.jar`; Maven Assembly coloca o JAR em `lib/` dentro de `deploy-artifacts/tickets-api-lambda.zip`. Artefatos locais são ignorados pelo Git. A CI roda em push na `main` e em pull requests; configura Java 21, executa o Wrapper e valida o SAM. Ela **não publica** na AWS.
 
+![Execução aprovada do job verify no GitHub Actions para o commit 213e88e](docs/images/ci-success.png)
+
+*CI aprovada no [commit `213e88e`](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42421693938), incluindo testes, pacote e validação do template SAM.*
+
 ### Demonstração de falha no CI
 
 Na branch temporária `demo/ci-failure`, o commit `c552a86` adicionou somente `CiFailureDemoTest.demoCiDetectsWrongInitialStatusExpectation`. O teste exige intencionalmente `CLOSED` para um chamado novo; a regra correta devolve `OPEN`. O [PR #1](https://github.com/Haseo2g/tickets-api-portfolio/pull/1), direcionado à `main`, disparou o [Actions reprovado](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42420319459): `mvnw verify` executou **7 testes, 1 falha**, com `expected: <CLOSED> but was: <OPEN>`. Os 6 testes originais passaram. O PR foi **fechado sem merge** e a branch remota foi mantida como evidência; o teste defeituoso não está na `main`.
+
+![Execução reprovada do job verify no PR 1 de demonstração](docs/images/ci-failure.png)
+
+*O resumo da execução mostra a reprovação. A causa específica, `expected: <CLOSED> but was: <OPEN>`, está no [log do Actions](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42420319459) e no registro de evidências.*
 
 Em 07/11/2026, a API do GitHub informou que a `main` **não tinha branch protection nem ruleset aplicável exigindo checks aprovados**. Portanto, a execução comprova detecção pelo CI e a decisão de não integrar o defeito; **não comprova bloqueio técnico do botão de merge**. Veja o [registro da demonstração](docs/EVIDENCIAS_EXECUCAO.md).
 
@@ -125,13 +188,25 @@ A publicação usou a role de serviço `TicketsApiCloudFormationDeployRole` e a 
 
 Na criação inicial, eventos de autorização exigiram três ajustes: `cloudformation:CreateChangeSet` para o transform `Serverless-2016-10-31`, `apigateway:POST` para tags da HTTP API e `apigateway:TagResource` para o stage. Após os ajustes, a recuperação/atualização da stack foi informada como `UPDATE_COMPLETE`. Eram permissões de implantação, não defeitos do Java. Veja o [histórico e procedimento manual](docs/DEPLOY_MANUAL_AWS_FREE.md).
 
+![Stack tickets-api-demo com status UPDATE_COMPLETE no console CloudFormation](docs/images/cloudformation-deploy.png)
+
+*Stack `tickets-api-demo` em `UPDATE_COMPLETE` no console CloudFormation. O deploy foi manual, após ajustes de permissões IAM.*
+
 O workflow [Deploy](.github/workflows/deploy.yml) permanece disponível só por acionamento manual e requer OIDC. Ele **não foi usado** nesta publicação; o bloqueio do provedor OIDC no Free Account Plan mantém a automação pendente. Não há chaves AWS no repositório ou no workflow.
 
-## Logs e investigação
+## Persistência e observabilidade
+
+O chamado fictício `b836be40-4614-4b93-a773-a74d6916ac13` aparece no console DynamoDB com status `CLOSED` e `updatedAt` posterior a `createdAt`. A captura mostra a tela **Editar item**; a resposta HTTP acima mostra o mesmo registro.
+
+![Atributos do chamado de demonstração exibidos no console DynamoDB](docs/images/dynamodb-ticket.png)
+
+*Registro persistido e atualizado no DynamoDB.*
 
 Abra CloudWatch Logs e procure o grupo com prefixo `/aws/lambda/tickets-api-demo-TicketsFunction-`. Cada requisição produz JSON com `eventType`, `requestId`, `method`, `route`, `statusCode`, `durationMs` e, quando aplicável, `ticketId`. Pesquise pelo `requestId` devolvido no erro ou no cabeçalho `x-request-id` para encontrar a requisição. Não são registrados corpos completos, descrições ou credenciais. Linhas `START`, `END` e `REPORT` são emitidas pela plataforma Lambda.
 
-![Visão dos eventos de requisição e das linhas da plataforma no CloudWatch](docs/images/cloudwatch-logs.png)
+![Evento INVALID_TRANSITION expandido no CloudWatch Logs](docs/images/cloudwatch-invalid-transition.png)
+
+*O evento JSON mostra `statusCode=409` e o mesmo `requestId` da resposta HTTP, permitindo investigar a falha sem registrar o corpo da requisição. Uma [visão geral dos logs](docs/images/cloudwatch-logs.png) também está disponível.*
 
 ## Segurança, custo e remoção
 
@@ -146,20 +221,11 @@ Limitações proporcionais ao projeto: `Scan` sem ordenação ou snapshot, API p
 ## Demonstração em cerca de cinco minutos
 
 1. **0:00–0:45** — Mostre este README, a arquitetura e a URL da API.
-2. **0:45–1:30** — Mostre os testes locais e a [CI aprovada](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867).
+2. **0:45–1:30** — Mostre os testes locais e a [CI aprovada](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42421693938).
 3. **1:30–2:30** — Execute `GET /health`, consulte o chamado fictício e explique `OPEN → IN_PROGRESS → CLOSED`.
 4. **2:30–3:30** — Mostre o item no DynamoDB e a resposta 409 para transição proibida.
 5. **3:30–4:15** — Correlacione `requestId` da resposta com o JSON no CloudWatch.
 6. **4:15–5:00** — Explique o deploy manual, a separação das roles, custo e remoção.
-
-## Prints para completar o portfólio
-
-- [ ] CI aprovada — [execução real](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42401517867); **[INSERIR PRINT: CI]**
-- [x] PR fechado com teste intencional reprovado — [PR #1](https://github.com/Haseo2g/tickets-api-portfolio/pull/1) e [Actions](https://github.com/Haseo2g/tickets-api-portfolio/actions/runs/42420319459); **[PENDENTE: PRINT DA FALHA]**
-- [ ] CloudFormation com `UPDATE_COMPLETE` — **[INSERIR PRINT: DEPLOY]**
-- [ ] Chamadas HTTP reais à API — **[INSERIR PRINT: HEALTH, TICKETS E ERRO]**
-- [x] Item no DynamoDB — [captura recebida](docs/images/dynamodb-ticket.png)
-- [x] Logs no CloudWatch — [evento expandido](docs/images/cloudwatch-invalid-transition.png) e [visão geral](docs/images/cloudwatch-logs.png)
 
 ## Referências
 

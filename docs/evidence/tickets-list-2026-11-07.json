@@ -1,0 +1,53 @@
+{
+  "items": [
+    {
+      "id": "9c78f27f-52dd-4cfd-8b01-677e0a9d743c",
+      "title": "pagination-20261107T223826Z-2eab2b12-1",
+      "description": "Chamado fictício para validação de paginação do portfólio.",
+      "status": "OPEN",
+      "createdAt": "2026-11-07T22:38:24.651283894Z",
+      "updatedAt": "2026-11-07T22:38:24.651283894Z"
+    },
+    {
+      "id": "ac51067f-ef36-4eae-9802-31889b7e0dcd",
+      "title": "pagination-20261107T223826Z-2eab2b12-3",
+      "description": "Chamado fictício para validação de paginação do portfólio.",
+      "status": "OPEN",
+      "createdAt": "2026-11-07T22:38:28.236737309Z",
+      "updatedAt": "2026-11-07T22:38:28.236737309Z"
+    },
+    {
+      "id": "b836be40-4614-4b93-a773-a74d6916ac13",
+      "title": "Teste de deploy AWS",
+      "description": "Primeiro chamado real do portfolio Java 21",
+      "status": "CLOSED",
+      "createdAt": "2026-11-07T21:06:33.160255145Z",
+      "updatedAt": "2026-11-07T21:08:07.700711397Z"
+    },
+    {
+      "id": "f22098ff-748e-47f1-8778-e980acc69fb8",
+      "title": "pagination-20261107T223826Z-2eab2b12-4",
+      "description": "Chamado fictício para validação de paginação do portfólio.",
+      "status": "OPEN",
+      "createdAt": "2026-11-07T22:38:28.789526126Z",
+      "updatedAt": "2026-11-07T22:38:28.789526126Z"
+    },
+    {
+      "id": "52af1abb-6ba3-405a-8eb0-cd5bd5b21813",
+      "title": "pagination-20261107T223826Z-2eab2b12-5",
+      "description": "Chamado fictício para validação de paginação do portfólio.",
+      "status": "OPEN",
+      "createdAt": "2026-11-07T22:38:29.350319905Z",
+      "updatedAt": "2026-11-07T22:38:29.350319905Z"
+    },
+    {
+      "id": "7bab538a-0199-4428-9a20-2f03b85ffaec",
+      "title": "pagination-20261107T223826Z-2eab2b12-2",
+      "description": "Chamado fictício para validação de paginação do portfólio.",
+      "status": "OPEN",
+      "createdAt": "2026-11-07T22:38:27.692936269Z",
+      "updatedAt": "2026-11-07T22:38:27.692936269Z"
+    }
+  ],
+  "nextToken": null
+}
