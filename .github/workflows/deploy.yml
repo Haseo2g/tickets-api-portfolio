@@ -20,7 +20,9 @@ jobs:
           cache: maven
       - uses: aws-actions/setup-sam@v3
       - run: bash ./mvnw -B verify
-      - run: sam validate --template-file template.yaml
+      - run: sam validate --template-file template.yaml --region "$AWS_REGION"
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}

@@ -98,12 +98,12 @@ bash ./mvnw -B verify
 No Windows: `./mvnw.cmd -B verify` no PowerShell. Os testes usam repositório em memória; não precisam de credenciais AWS, Docker nem DynamoDB Local. O pacote de deploy é `target/tickets-api.jar`. Para validar a infraestrutura quando o AWS SAM CLI estiver instalado:
 
 ```bash
-sam validate --template-file template.yaml
+sam validate --template-file template.yaml --region us-east-1
 ```
 
 ## CI e preparo futuro da AWS
 
-A CI executa em push na `main` e em pull requests. Ela configura Java 21, roda testes e empacotamento pelo Maven Wrapper e valida o template com SAM CLI. Não usa credenciais AWS nem publica recursos. O workflow `Deploy` tem apenas `workflow_dispatch`: nenhum push ou CI bem-sucedido inicia deploy automaticamente.
+A CI executa em push na `main` e em pull requests. Ela configura Java 21, roda testes e empacotamento pelo Maven Wrapper e valida o template com SAM CLI. A região `us-east-1` nesse comando apenas fornece o contexto exigido pelo validador; não há publicação nem uso de credenciais AWS. O workflow `Deploy` tem apenas `workflow_dispatch`: nenhum push ou CI bem-sucedido inicia deploy automaticamente.
 
 **Próxima etapa na conta gratuita:** antes de criar qualquer recurso, verifique na documentação e no console da sua conta se Lambda, HTTP API, DynamoDB, CloudFormation e o método de publicação desejado estão disponíveis no Free Account Plan, além de limites e possíveis cobranças. Se OIDC continuar bloqueado, mantenha o deploy automatizado pendente. Uma publicação manual futura, se compatível e autorizada, pode usar uma sessão temporária de usuário com permissões específicas; não registre credenciais em arquivos versionados nem substitua OIDC por Access Keys permanentes no GitHub Actions. As instruções abaixo descrevem o cenário futuro com OIDC e devem ser usadas somente quando ele estiver disponível.
 
@@ -126,7 +126,7 @@ Deploy local opcional, com credenciais temporárias e permissão explícita:
 
 ```bash
 bash ./mvnw -B verify
-sam validate --template-file template.yaml
+sam validate --template-file template.yaml --region REGIAO
 sam deploy --template-file template.yaml --stack-name tickets-demo --region REGIAO --s3-bucket BUCKET_DE_ARTEFATOS --capabilities CAPABILITY_IAM --no-confirm-changeset
 aws cloudformation describe-stacks --stack-name tickets-demo --query 'Stacks[0].Outputs'
 bash scripts/smoke.sh https://URL-DO-OUTPUT-ApiUrl
